@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './Request.css'; // Import the CSS file
 
-const Request = () => {
+const Request = (request) => {
     return (
         <div class="main">
             <img class="project-src" src="rover.png"></img>

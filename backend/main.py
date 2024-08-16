@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
+from google_scan import *
 app = FastAPI()
+
+
+f = MasterSheetInterface()
 
 # Allow CORS for your React frontend
 origins = [
@@ -21,5 +25,12 @@ def read_root():
     return {"Hello": "World"}
 
 @app.get("/auth/{nu_id}")
-def read_item(nu_id: int):
-    return {"item_id": nu_id}
+def read_item(nu_id: str):
+    print( nu_id )
+    f.authorize(nu_id)
+    return f.user
+
+@app.get("/req_list")
+def read_item():
+    print( 'Fetching req list')
+    return f.get_req_list()

@@ -13,10 +13,27 @@
     display: flex;
     padding-top: 10%;
     gap: 2.5%;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
     height: 89%;
     width: 100%;
+}
+
+.requests {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    width: 75%;
+    align-items: center;
+}
+
+.curr_content {
+    width: 50%;
+}
+
+.disabled {
+    display: none;
 }
 
 .item {
@@ -24,4 +41,12 @@
     border: 1px solid #ddd;
     padding: 10px;
     margin: 5px 0;
+    user-select: none;
+}
+
+.submit_btn {
+    margin: 5px;
+    width: 50%;
+    height: 5%;
+    font-size: large;
 }
