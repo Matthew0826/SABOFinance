@@ -34,3 +34,8 @@ def read_item(nu_id: str):
 def read_item():
     print( 'Fetching req list')
     return f.get_req_list()
+
+@app.get("/options")
+def read_item():
+    print('Getting options')
+    return f.get_request_options()

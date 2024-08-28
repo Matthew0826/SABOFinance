@@ -50,3 +50,12 @@
     height: 5%;
     font-size: large;
 }
+
+.input {
+    height: 3vh;
+    box-sizing: border-box;
+    padding: 0 10px;
+    font-size: .75em;
+    text-align: center;
+    width: 50%;
+}
