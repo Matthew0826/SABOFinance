@@ -2,6 +2,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import time
 import sys
+from datetime import datetime
 
 # Add the parent directory to the system path for module imports
 sys.path.append('..')
@@ -101,6 +102,58 @@ class MasterSheetInterface:
                     continue
                 return_val[self.sheet_data["Request Options"][0][i]].append(self.sheet_data["Request Options"][j][i])
         return return_val
+    
+    def add_request(self, request):
+        self.refresh("Requests")
+        next_row = len(self.sheet_data["Requests"])             #This is the next row
+        try:
+            id = max( [float(value) for value in [sub_array[0] for sub_array in self.sheet_data["Requests"][1:] ] if value]) + 1
+        except:
+            id = 0
+        data = [str(int(id)), request["Requestee"], request["Index"], request["Account"], request["Description"], "Pending Approval",
+            request["Project"], request["Subteam"], request["Cost"], request["Link"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]
+        print( next_row, data)
+        self.file.worksheet("Requests").append_row(data )
+    
+    APPROVAL_COLS = {"Approver": "L", "Approval Date": "M" }
+    ADMIN_COLS = {"Admin Approver": "O", "Admin Date": "P"}
+
+    def add_approval(self, approval_status, request, id, user, note="" ):
+        #Get the current ID
+        id = int(id) + 2
+        print( 'adding approval')
+        #Refresh the relevant data
+        self.refresh("Request Options")
+
+        #See if this is a minor purchase
+        minor_purchase = request["Requested Cost"] < self.sheet_data["Request Options"][1][5]
+
+        #Check if the user is an admin
+        is_admin = 'Admin' in user['Permissions'] and request['Project'] in user['Permissions']
+
+        if( approval_status ):
+            status = "Approved" if (minor_purchase or is_admin) else "Pending Admin Approval"
+        else:
+            status = "Admin Denied" if is_admin else "Denied"
+
+        #Check if it is an admin user issuing permissions
+        if( 'Admin' in user['Permissions'] and request['Project'] in user['Permissions'] and request['Status'] == "Pending Admin Approval" ):
+            range = self.ADMIN_COLS["Admin Approver"] + str(id) + ":" + self.ADMIN_COLS["Approval Date"] + str(id)
+            self.file.worksheet("Requests").update( range, [[user["Name"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]])
+            self.file.worksheet("Requests").update( f"F{id}", [[status]])
+
+
+        #Check if it is a business 
+        elif('Business' in user['Permissions'] and request['Status'] == "Pending Approval"):
+            range = self.APPROVAL_COLS["Approver"] + str(id) + ":" + self.APPROVAL_COLS["Approval Date"] + str(id)
+            self.file.worksheet("Requests").update( range, [[user["Name"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]])
+            self.file.worksheet("Requests").update( f"F{id}", [[status]])
+                
+        
+        if( note != "" ):
+            self.file.worksheet("Requests").update( f"V{id}", [[note]])
+        
+        
 
 if __name__ == '__main__':
     # Create an instance of the MasterSheetInterface class

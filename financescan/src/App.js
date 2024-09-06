@@ -20,6 +20,7 @@ function App() {
 
   // Function to handle sign-in action
   const onSignIn = (text) => {
+    console.log('signing in...')
     // Make a GET request to authenticate the user
     axios.get(url + `auth/${text}`)
       .then(response => {
@@ -39,6 +40,20 @@ function App() {
       });
   };
 
+  const postRequest = (request) => {
+    axios.post(url + 'submit/request', request)
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }
+
+  const postApproval = (approval) => {
+    axios.post(url + 'approve', approval)
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }
+
   const getOptions = () => {
     axios.get(url + `options`)
       .then(response => {
@@ -52,7 +67,8 @@ function App() {
       <TopBar onSignIn={onSignIn} username={username} />
       <header className="App-header">
         {/* Conditionally render SplashPage or MainPage based on whether the username is set */}
-        {username === '' ? <SplashPage /> : <MainPage req_list={req_list} user={user} options={options} />}
+        {username === '' ? <SplashPage /> : <MainPage req_list={req_list} user={user} options={options}
+          postRequest={postRequest} postApproval={postApproval} />}
       </header>
     </div>
   );

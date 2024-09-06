@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from google_scan import *
+from typing import Dict
+
 app = FastAPI()
 
 
@@ -39,3 +41,14 @@ def read_item():
 def read_item():
     print('Getting options')
     return f.get_request_options()
+
+@app.post("/submit/request")
+async def submit_request(request:Dict):
+    print( request )
+    f.add_request(request)
+    return {}
+
+@app.post("/approve")
+async def submit_approval(approval:Dict):
+    f.add_approval( approval['approved'], approval['request'], approval['id'], approval['user'], approval['note'])
+    return
