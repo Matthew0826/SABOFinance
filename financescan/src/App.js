@@ -16,7 +16,7 @@ function App() {
 
   const [options, setOptions] = useState({});
 
-  const url = `http://127.0.0.1:8000/`; // Base URL for the API
+  const url = `https://35.208.168.62:8000/`; // Base URL for the API
 
   // Function to handle sign-in action
   const onSignIn = (text) => {
