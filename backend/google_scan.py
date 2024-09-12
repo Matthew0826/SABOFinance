@@ -3,6 +3,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 import time
 import sys
 from datetime import datetime
+from web_scraper import *
+import shutil
 
 # Add the parent directory to the system path for module imports
 sys.path.append('..')
@@ -36,6 +38,8 @@ class MasterSheetInterface:
         
         # Initialize an empty user dictionary
         self.user = {}
+
+        self.scraper = WebScraper()
 
     # Refreshes the data of a specified sheet
     def refresh(self, pagename):
@@ -77,13 +81,24 @@ class MasterSheetInterface:
         for i in range(1, len(self.sheet_data["Requests"])):
             # Initialize a dictionary to store the current request's data
             curr_element = {}
+
+            
+
             for j in range(1, len(self.sheet_data["Requests"][0])):
                 # Populate the current request dictionary with data from the sheet
                 curr_element[self.sheet_data["Requests"][0][j]] = self.sheet_data["Requests"][i][j]
-            # Add the current request to the requests dictionary using its ID as the key
-            requests[int(self.sheet_data["Requests"][i][0])] = curr_element
+            print( curr_element["Requestee"])
+            is_name = curr_element["Requestee"] == self.user["Name"]
+            is_business = "Business" in self.user["Permissions"] 
+            is_lead = curr_element["Subteam"] + " (" + curr_element["Project"] + ")" in self.user["Permissions"] and "Lead" in self.user["Permissions"]
+            is_admin = curr_element["Project"] in self.user["Permissions"] and "Admin" in self.user["Permissions"] and curr_element["Project"] != ""
+            print( self.user["Permissions"] )
+            print( is_name, is_business, is_lead, is_admin )
+
+            if(  is_name or is_business or is_lead or is_admin ):
+                # Add the current request to the requests dictionary using its ID as the key
+                requests[int(self.sheet_data["Requests"][i][0])] = curr_element
         
-        print(requests)
         return requests
     
     # Placeholder method to get the user's requests (not yet implemented)
@@ -121,7 +136,7 @@ class MasterSheetInterface:
     def add_approval(self, approval_status, request, id, user, note="" ):
         #Get the current ID
         id = int(id) + 2
-        print( 'adding approval')
+
         #Refresh the relevant data
         self.refresh("Request Options")
 
@@ -132,7 +147,7 @@ class MasterSheetInterface:
         is_admin = 'Admin' in user['Permissions'] and request['Project'] in user['Permissions']
 
         if( approval_status ):
-            status = "Approved" if (minor_purchase or is_admin) else "Pending Admin Approval"
+            status = "Approved" if (minor_purchase or (is_admin and request['Status'] == 'Pending Admin Approval')) else "Pending Admin Approval"
         else:
             status = "Admin Denied" if is_admin else "Denied"
 
@@ -153,14 +168,32 @@ class MasterSheetInterface:
         if( note != "" ):
             self.file.worksheet("Requests").update( f"V{id}", [[note]])
         
+    def add_final( self, cost, tax, request, id, link ):
+        id = int(id) + 2
+        time = datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))
+
+        self.file.worksheet("Requests").update( f'P{id}:S{id}', [[cost, tax, link, time]])
+        self.file.worksheet("Requests").update( f'F{id}', [["Awaiting SABO Verification"]] )
         
+        self.get_user( request['Requestee'] )
+        self.scraper.submit_reimbursement(self.user, request, cost, id-2 )
+        shutil.rmtree(r"C:\Users\geisel.m\Documents\Clubs\SEDS\SABOFinance\backend\temp_" + str(id - 2))
+
+    def get_user( self, name ):
+        self.refresh("Students")
+        for i in range(len(self.sheet_data["Students"])):
+            print( self.sheet_data["Students"][:][i][1] )
+            if self.sheet_data["Students"][:][i][1] == name:
+                return self.authorize(self.sheet_data["Students"][:][i][0])
+
+    
 
 if __name__ == '__main__':
     # Create an instance of the MasterSheetInterface class
     f = MasterSheetInterface()
     # Authorize a user using their NuID
-    f.authorize("002761220")
+    f.get_user("Matthew Geisel")
+    print( f.user )
     # Retrieve the request list
-    f.get_req_list()
 
     # print(f.user)  # Uncomment to print the authorized user's data

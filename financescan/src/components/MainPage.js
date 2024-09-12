@@ -3,8 +3,9 @@ import './MainPage.css'; // Import the CSS file for styling
 import RequestList from './requests/RequestList';
 import Request from './requests/Request';
 import NewRequest from './requests/NewRequest';
+import ApprovedRequest from './requests/ApprovedRequest';
 
-const MainPage = ({ req_list, user, options, postRequest, postApproval }) => {
+const MainPage = ({ req_list, user, options, postRequest, postApproval, postFiles }) => {
 
     // State to track the selected request (default: -1 meaning none selected)
     const [curr_req, setCurrReq] = useState(-1);
@@ -25,6 +26,7 @@ const MainPage = ({ req_list, user, options, postRequest, postApproval }) => {
             {/* Conditional rendering of the selected request content */}
             <div className={curr_req >= 0 ? "curr_content" : "disabled"}>
                 <Request curr_req={curr_req} sortedEntries={sortedEntries} req_list={req_list} user={user} postApproval={postApproval}></Request>
+                <ApprovedRequest curr_req={curr_req} sortedEntries={sortedEntries} req_list={req_list} user={user} postApproval={postApproval} postFiles={postFiles}></ApprovedRequest>
             </div>
 
             {/* If the 'Add Request' button is clicked, display the submission form */}

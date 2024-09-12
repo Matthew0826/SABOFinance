@@ -14,7 +14,7 @@ const TopBar = ({ onSignIn, username }) => {
                 <img src="usericon.png"></img>
                 <p>{username}</p>
                 <p>NuID:</p>
-                <input className="test" value={text} type="tel" onChange={(event) => setText(event.target.value)} maxLength={9}></input>
+                <input className="input" value={text} type="tel" onChange={(event) => setText(event.target.value)} maxLength={9}></input>
                 <button onClick={handleClick}>Sign In</button>
             </div>
         </div>

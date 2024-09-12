@@ -54,6 +54,23 @@ function App() {
       });
   }
 
+  const postFiles = (cost, tax, request, id, files) => {
+    if (files.length === 0) { return }
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append(`file_uploads`, file);
+    })
+    axios.post(url + 'upload/' + id, formData)
+      .then(() => {
+        axios.post(url + 'submit/final', { 'Cost': cost, 'Tax': tax, 'Request': request, 'ID': id }).then(() => {
+          alert('Files uplaoded successfully')
+        }).catch((err) => {
+          console.error(err)
+        })
+      })
+
+  }
+
   const getOptions = () => {
     axios.get(url + `options`)
       .then(response => {
@@ -68,7 +85,7 @@ function App() {
       <header className="App-header">
         {/* Conditionally render SplashPage or MainPage based on whether the username is set */}
         {username === '' ? <SplashPage /> : <MainPage req_list={req_list} user={user} options={options}
-          postRequest={postRequest} postApproval={postApproval} />}
+          postRequest={postRequest} postApproval={postApproval} postFiles={postFiles} />}
       </header>
     </div>
   );
