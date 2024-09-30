@@ -12,21 +12,20 @@ import os
 class WebScraper():
     def __init__(self):
         # Path to the ChromeDriver executable
-        CHROME_DRIVER_PATH = r'C:\Program Files\Google\chromedriver.exe'
         chrome_options = Options()
-
         chrome_options.add_argument('--headless')  # Run in headless mode
-
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
         # Initialize the WebDriver
-        self.driver = webdriver.Chrome(service=Service(executable_path=CHROME_DRIVER_PATH), options=chrome_options)
+        self.driver = webdriver.Chrome(options=chrome_options)
 
     def submit_reimbursement(self, user, request, cost, id ):
         
         files_to_submit = []
         # Send the path of the file to upload
-        for root, dirs, files in os.walk(r"C:\Users\geisel.m\Documents\Clubs\SEDS\SABOFinance\backend\temp_" + str(id)):
+        for root, dirs, files in os.walk(r"/root/SABOFinance/temp_" + str(id)):
                 for name in files:
-                    files_to_submit.append( root + "\\" + name )
+                    files_to_submit.append( root + "/" + name )
 
         if( len( files_to_submit ) == 0 ):
             return

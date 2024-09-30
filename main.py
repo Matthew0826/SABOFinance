@@ -17,6 +17,7 @@ d = DriveInterface()
 # Allow CORS for your React frontend
 origins = [
     "http://localhost:3000",
+    "https://northeasternseds.com",
 ]
 
 app.add_middleware(
@@ -28,22 +29,22 @@ app.add_middleware(
 )
 
 @app.get("/")
-def read_root():
-    return {"Hello": "World"}
+async def read_root():
+    return {"Welcome to the Northeastern SEDS finance backend!"}
 
 @app.get("/auth/{nu_id}")
-def read_item(nu_id: str):
+async def read_item(nu_id: str):
     print( nu_id )
     f.authorize(nu_id)
     return f.user
 
 @app.get("/req_list")
-def read_item():
+async def read_item():
     print( 'Fetching req list')
     return f.get_req_list()
 
 @app.get("/options")
-def read_item():
+async def read_item():
     print('Getting options')
     return f.get_request_options()
 

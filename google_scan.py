@@ -11,14 +11,12 @@ sys.path.append('..')
 
 # Define the scope for Google Sheets API access
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
 # Load credentials from the JSON key file for Google Sheets API
-CREDENTIALS = ServiceAccountCredentials.from_json_keyfile_name(r"C:\Users\geisel.m\Documents\Clubs\SEDS\SABOFinance\backend\secret_key.json")
-AUTH_END_INDEX = "G"
+CREDENTIALS = ServiceAccountCredentials.from_json_keyfile_name(r"secret_key.json")
+
 # Define the sheet names that will be accessed
 SHEET_NAMES = ["Students", "Requests", "Request Options"]
-
-# Commented out sample code to update a cell in a sheet
-# sheet.update_cell(2, 3, "test")
 
 # The interface with the Master Finance Sheet
 class MasterSheetInterface:
