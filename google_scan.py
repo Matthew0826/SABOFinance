@@ -85,13 +85,10 @@ class MasterSheetInterface:
             for j in range(1, len(self.sheet_data["Requests"][0])):
                 # Populate the current request dictionary with data from the sheet
                 curr_element[self.sheet_data["Requests"][0][j]] = self.sheet_data["Requests"][i][j]
-            print( curr_element["Requestee"])
             is_name = curr_element["Requestee"] == self.user["Name"]
             is_business = "Business" in self.user["Permissions"] 
             is_lead = curr_element["Subteam"] + " (" + curr_element["Project"] + ")" in self.user["Permissions"] and "Lead" in self.user["Permissions"]
             is_admin = curr_element["Project"] in self.user["Permissions"] and "Admin" in self.user["Permissions"] and curr_element["Project"] != ""
-            print( self.user["Permissions"] )
-            print( is_name, is_business, is_lead, is_admin )
 
             if(  is_name or is_business or is_lead or is_admin ):
                 # Add the current request to the requests dictionary using its ID as the key
@@ -129,15 +126,17 @@ class MasterSheetInterface:
         self.file.worksheet("Requests").append_row(data )
     
     APPROVAL_COLS = {"Approver": "L", "Approval Date": "M" }
-    ADMIN_COLS = {"Admin Approver": "O", "Admin Date": "P"}
+    ADMIN_COLS = {"Admin Approver": "N", "Admin Date": "O"}
 
-    def add_approval(self, approval_status, request, id, user, note="" ):
+    def add_approval(self, approval_status, id,user, note="" ):
         #Get the current ID
+        self.authorize(user)
+        user=self.user
         id = int(id) + 2
-
+        request = self.get_req_list()[id-2]
         #Refresh the relevant data
         self.refresh("Request Options")
-
+        approval_status = (approval_status == 'true')
         #See if this is a minor purchase
         minor_purchase = request["Requested Cost"] < self.sheet_data["Request Options"][1][5]
 
@@ -151,7 +150,7 @@ class MasterSheetInterface:
 
         #Check if it is an admin user issuing permissions
         if( 'Admin' in user['Permissions'] and request['Project'] in user['Permissions'] and request['Status'] == "Pending Admin Approval" ):
-            range = self.ADMIN_COLS["Admin Approver"] + str(id) + ":" + self.ADMIN_COLS["Approval Date"] + str(id)
+            range = self.ADMIN_COLS["Admin Approver"] + str(id) + ":" + self.ADMIN_COLS["Admin Date"] + str(id)
             self.file.worksheet("Requests").update( range, [[user["Name"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]])
             self.file.worksheet("Requests").update( f"F{id}", [[status]])
 
@@ -166,7 +165,10 @@ class MasterSheetInterface:
         if( note != "" ):
             self.file.worksheet("Requests").update( f"V{id}", [[note]])
         
-    def add_final( self, cost, tax, request, id, link ):
+    def add_final( self, cost, tax, id, NUId, link ):
+        self.authorize(NUId)
+        print(self.user)
+        request = self.get_req_list()[int(id)]
         id = int(id) + 2
         time = datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))
 
@@ -174,8 +176,10 @@ class MasterSheetInterface:
         self.file.worksheet("Requests").update( f'F{id}', [["Awaiting SABO Verification"]] )
         
         self.get_user( request['Requestee'] )
+        print( 'submitting files...' )
         self.scraper.submit_reimbursement(self.user, request, cost, id-2 )
-        shutil.rmtree(r"C:\Users\geisel.m\Documents\Clubs\SEDS\SABOFinance\backend\temp_" + str(id - 2))
+        print( 'deleting files...' )
+        shutil.rmtree(r"/root/SABOFinance/temp_" + str(id - 2))
 
     def get_user( self, name ):
         self.refresh("Students")

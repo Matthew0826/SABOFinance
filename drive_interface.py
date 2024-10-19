@@ -66,13 +66,13 @@ class DriveInterface:
     
     def add_temp_files(self, id):
         parent_folder_id = '1IVeLYbmaRRNqD2Uys6DDRz_Fkb7elRnY'  # Replace with your folder ID
-        folder_id = self.create_folder('request_' + id, parent_folder_id)
+        folder_id = self.create_folder('request_' + str(id), parent_folder_id)
 
         file_id = 0
         
-        for root, dirs, files in os.walk(r"C:\Users\geisel.m\Documents\Clubs\SEDS\SABOFinance\backend\temp_" + id):
+        for root, dirs, files in os.walk(r"/root/SABOFinance/temp_" + str(id)):
                     for name in files:
-                        self.upload_file_to_drive( root + "\\" + name, 'reciept_' + str(file_id), folder_id ) 
+                        self.upload_file_to_drive( root + "/" + name, 'reciept_' + str(file_id), folder_id ) 
                         file_id += 1
 
         return f"https://drive.google.com/drive/folders/{folder_id}"

@@ -97,6 +97,7 @@ class WebScraper():
         #This is the final submit button
         final_button = self.driver.find_element(By.ID, f'gform_submit_button_2')
         self.driver.execute_script("arguments[0].click();", final_button)  
+    
 
 if __name__ == '__main__':
     w = WebScraper()

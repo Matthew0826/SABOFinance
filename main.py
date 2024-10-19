@@ -56,13 +56,13 @@ async def submit_request(request:Dict):
 
 @app.post("/approve")
 async def submit_approval(approval:Dict):
-    f.add_approval( approval['approved'], approval['request'], approval['id'], approval['user'], approval['note'])
+    f.add_approval( approval['approved'], approval['id'], approval['user'], approval['note'])
     return
 
 @app.post("/submit/final")
 async def submit_final(data:Dict):
     link = d.add_temp_files(data['ID'])
-    f.add_final( data['Cost'], data['Tax'], data['Request'], data['ID'], link )
+    f.add_final( data['Cost'], data['Tax'], data['ID'], data['NUId'], link )
     return
 
 @app.post("/upload/{id}")
