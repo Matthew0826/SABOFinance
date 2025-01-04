@@ -1,0 +1,200 @@
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import time
+import sys
+from datetime import datetime
+from web_scraper import *
+import shutil
+
+# Add the parent directory to the system path for module imports
+sys.path.append('..')
+
+# Define the scope for Google Sheets API access
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+# Load credentials from the JSON key file for Google Sheets API
+CREDENTIALS = ServiceAccountCredentials.from_json_keyfile_name(r"../secret_key.json")
+
+# Define the sheet names that will be accessed
+SHEET_NAMES = ["Students", "Requests", "Request Options"]
+
+# The interface with the Master Finance Sheet
+class FinanceState:
+
+    # Default initialization
+    def __init__(self):
+        # Authorize and initialize the Google Sheets client
+        self.drive = gspread.authorize(CREDENTIALS)
+        # Open the specific Google Sheet by name
+        self.file = self.drive.open("SEDS Master Finance Sheet 2024-2025")
+
+        # Initialize a dictionary to store sheet data
+        self.sheet_data = {}
+        for sheet in SHEET_NAMES:
+            # Retrieve all values from each sheet and store them in the dictionary
+            self.sheet_data[sheet] = self.file.worksheet(sheet).get_all_values()
+        
+        # Initialize an empty user dictionary
+        self.user = {}
+        self.scraper = WebScraper()
+
+    # Refreshes the data of a specified sheet
+    def refresh(self, pagename):
+        # Update the local copy of the sheet data
+        self.sheet_data[pagename] = self.file.worksheet(pagename).get_all_values()
+
+    # Authorize the user based on NuID
+    def authorize(self, nuID):
+        print(nuID)
+        # Reset user information
+        self.user = {}
+        try:
+            # Refresh the data from the "Students" sheet
+            self.refresh("Students")
+            # Loop through the rows in the "Students" sheet
+            for i in range(1, len(self.sheet_data["Students"])):
+                # Check if the current row matches the provided NuID
+                if self.sheet_data["Students"][i][0] == nuID:
+                    # Populate the user dictionary with the student's information
+                    for j in range(len(self.sheet_data["Students"][0])):
+                        self.user[self.sheet_data["Students"][0][j]] = self.sheet_data["Students"][i][j]
+        except:
+            # If an error occurs, reset the user information
+            self.user = {}
+        
+    # Retrieves the request list from the "Requests" sheet
+    def get_req_list(self):
+        # If no user is authorized, return an empty dictionary
+        if self.user == {}:
+            return {}
+        
+        # Initialize an empty dictionary for requests
+        requests = {}
+
+        # Refresh the data from the "Requests" sheet
+        self.refresh("Requests")
+
+        # Loop through the rows in the "Requests" sheet
+        for i in range(1, len(self.sheet_data["Requests"])):
+            # Initialize a dictionary to store the current request's data
+            curr_element = {}
+
+            
+
+            for j in range(1, len(self.sheet_data["Requests"][0])):
+                # Populate the current request dictionary with data from the sheet
+                curr_element[self.sheet_data["Requests"][0][j]] = self.sheet_data["Requests"][i][j]
+            is_name = curr_element["Requestee"] == self.user["Name"]
+            is_business = "Business" in self.user["Permissions"] 
+            is_lead = curr_element["Subteam"] + " (" + curr_element["Project"] + ")" in self.user["Permissions"] and "Lead" in self.user["Permissions"]
+            is_admin = curr_element["Project"] in self.user["Permissions"] and "Admin" in self.user["Permissions"] and curr_element["Project"] != ""
+
+            if(  is_name or is_business or is_lead or is_admin ):
+                # Add the current request to the requests dictionary using its ID as the key
+                requests[int(self.sheet_data["Requests"][i][0])] = curr_element
+        
+        return requests
+    
+    # Placeholder method to get the user's requests (not yet implemented)
+    def getUserRequests(self):
+        # Refresh the data from the "Purchases" sheet
+        self.refresh("Purchases")
+        
+    #Gets the options for creating a new request
+    def get_request_options(self):
+        self.refresh("Request Options")
+        return_val = {}
+        for i in range(len(self.sheet_data["Request Options"][0])):
+            return_val[self.sheet_data["Request Options"][0][i]] = []
+            for j in range(1, len(self.sheet_data["Request Options"])):
+                if(self.sheet_data["Request Options"][j][i] == ""):
+                    continue
+                return_val[self.sheet_data["Request Options"][0][i]].append(self.sheet_data["Request Options"][j][i])
+        return return_val
+    
+    def add_request(self, request):
+        self.refresh("Requests")
+        next_row = len(self.sheet_data["Requests"])             #This is the next row
+        try:
+            id = max( [float(value) for value in [sub_array[0] for sub_array in self.sheet_data["Requests"][1:] ] if value]) + 1
+        except:
+            id = 0
+        data = [str(int(id)), request["Requestee"], request["Index"], request["Account"], request["Description"], "Pending Approval",
+            request["Project"], request["Subteam"], request["Cost"], request["Link"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]
+        print( next_row, data)
+        self.file.worksheet("Requests").append_row(data )
+    
+    APPROVAL_COLS = {"Approver": "L", "Approval Date": "M" }
+    ADMIN_COLS = {"Admin Approver": "N", "Admin Date": "O"}
+
+    def add_approval(self, approval_status, id,user, note="" ):
+        #Get the current ID
+        self.authorize(user)
+        user=self.user
+        id = int(id) + 2
+        request = self.get_req_list()[id-2]
+        #Refresh the relevant data
+        self.refresh("Request Options")
+        approval_status = (approval_status == 'true')
+        #See if this is a minor purchase
+        minor_purchase = request["Requested Cost"] < self.sheet_data["Request Options"][1][5]
+
+        #Check if the user is an admin
+        is_admin = 'Admin' in user['Permissions'] and request['Project'] in user['Permissions']
+
+        if( approval_status ):
+            status = "Approved" if (minor_purchase or (is_admin and request['Status'] == 'Pending Admin Approval')) else "Pending Admin Approval"
+        else:
+            status = "Admin Denied" if is_admin else "Denied"
+
+        #Check if it is an admin user issuing permissions
+        if( 'Admin' in user['Permissions'] and request['Project'] in user['Permissions'] and request['Status'] == "Pending Admin Approval" ):
+            range = self.ADMIN_COLS["Admin Approver"] + str(id) + ":" + self.ADMIN_COLS["Admin Date"] + str(id)
+            self.file.worksheet("Requests").update( range, [[user["Name"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]])
+            self.file.worksheet("Requests").update( f"F{id}", [[status]])
+
+
+        #Check if it is a business 
+        elif('Business' in user['Permissions'] and request['Status'] == "Pending Approval"):
+            range = self.APPROVAL_COLS["Approver"] + str(id) + ":" + self.APPROVAL_COLS["Approval Date"] + str(id)
+            self.file.worksheet("Requests").update( range, [[user["Name"], datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))]])
+            self.file.worksheet("Requests").update( f"F{id}", [[status]])
+                
+        
+        if( note != "" ):
+            self.file.worksheet("Requests").update( f"V{id}", [[note]])
+        
+    def add_final( self, cost, tax, id, NUId, link ):
+        self.authorize(NUId)
+        print(self.user)
+        request = self.get_req_list()[int(id)]
+        id = int(id) + 2
+        time = datetime.now().strftime(str("%m/%d/%Y %H:%M:%S"))
+
+        self.file.worksheet("Requests").update( f'P{id}:S{id}', [[cost, tax, link, time]])
+        self.file.worksheet("Requests").update( f'F{id}', [["Awaiting SABO Verification"]] )
+        
+        self.get_user( request['Requestee'] )
+        print( 'submitting files...' )
+        self.scraper.submit_reimbursement(self.user, request, cost, id-2 )
+        print( 'deleting files...' )
+        shutil.rmtree(r"/root/SABOFinance/temp_" + str(id - 2))
+
+    def get_user( self, name ):
+        self.refresh("Students")
+        for i in range(len(self.sheet_data["Students"])):
+            print( self.sheet_data["Students"][:][i][1] )
+            if self.sheet_data["Students"][:][i][1] == name:
+                return self.authorize(self.sheet_data["Students"][:][i][0])
+
+    
+
+if __name__ == '__main__':
+    # Create an instance of the MasterSheetInterface class
+    f = MasterSheetInterface()
+    # Authorize a user using their NuID
+    f.get_user("Matthew Geisel")
+    print( f.user )
+    # Retrieve the request list
+
+    # print(f.user)  # Uncomment to print the authorized user's data

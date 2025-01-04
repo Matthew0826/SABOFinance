@@ -1,42 +1,80 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from google_scan import *
 from drive_interface import *
 from typing import Dict
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse, HTMLResponse
 from typing import List
+from FinanceInterface import FinanceInterface
 
+""" 
+This is the main website that deals with the API routing
+This should really only call external functions to handle logic
+"""
 app = FastAPI()
-
-
 f = MasterSheetInterface()
 d = DriveInterface()
+finance_interface = FinanceInterface()
 
-# Allow CORS for your React frontend
+# These are the hosts that can access the backend.
 origins = [
     "http://localhost:3000",
     "https://northeasternseds.com",
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+#Middleware that handles the acceptable origins and the heading
+app.add_middleware( CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"], )
 
+#This is the root. It gives information on the backend. This will appear when typing api.northeasternseds.com
 @app.get("/")
 async def read_root():
-    return {"Welcome to the Northeastern SEDS finance backend!"}
+    return ["Welcome to the Northeastern SEDS finance backend!", 
+        "Use the auth/ path to sign in and get an access token!", 
+        "Access tokens will expire after 5 minutes with no use",
+        "See the documentation on Notion for more info:", 
+        "https://www.notion.so/nurover/SEDS-Finance-API-127988be2f3b80d0b68cd89eadc258b8?pvs=4"]
 
-@app.get("/auth/{nu_id}")
-async def read_item(nu_id: str):
-    print( nu_id )
-    f.authorize(nu_id)
-    return f.user
+'''
+--- AUTHENTIFICATION LOGIC ---
+This logic handles how to authenticate and verify a user. There is documentation on this on Notion.
+Each user signs in with their NUId and a password. If they do not have a password, the system asks them to create one.
+For now, the password will be stored on the Master Finance Sheet (MFS).
+'''
+
+# This is the way to authenticate a user
+@app.get("/auth")
+async def read_item(nuid: str = '', password: str = ''):
+    return finance_interface.sign_in(nuid, password)
+
+'''
+--- DATA LOGIC ---
+This logic handles accessing requests from the frontend
+'''
+
+# This gets information about a user
+@app.get("/user")
+async def read_item(token:str = ''):
+    return finance_interface.get_user_info(token)
+
+# This gets all requests visible to the user
+@app.get("/requests")
+async def read_item(token:str = ''):
+    return finance_interface.get_visible_requests(token)
+
+# This gets a specific request
+@app.get("/requests/{rqid}")
+async def read_item(rqid:str, token:str=''):
+    return finance_interface.get_request(int(rqid), token)
+
+#This is the new way to get the data. There are a series of fields.
+@app.get("/data")
+async def read_item(skip: int = 0, limit: int = 10):
+    if( limit == 0 ):
+        return HTMLResponse(status_code=401)
+    else:
+        return skip
 
 @app.get("/req_list")
 async def read_item():
@@ -64,6 +102,13 @@ async def submit_final(data:Dict):
     link = d.add_temp_files(data['ID'])
     f.add_final( data['Cost'], data['Tax'], data['ID'], data['NUId'], link )
     return
+
+#This gets whenever the Excel sheet updates
+@app.post("/webhook")
+async def receive_webhook(data: Dict):
+    print(f"Received data: {data}")
+    finance_interface.on_webhook(data['sheetName'])
+    return {}
 
 @app.post("/upload/{id}")
 async def upload_files(id: str, file_uploads: list[UploadFile]):
