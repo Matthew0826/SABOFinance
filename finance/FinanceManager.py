@@ -4,6 +4,7 @@ Most of the logic should be here. It interacts with the FinanceInterface class.
 This class is meant to be secure. It does this by managing an active user list.
 '''
 from .interfaces.MFSInterface import MFSInterface
+from .interfaces.SABOInterface import SABOInterface
 
 from .datatypes.User import User
 from .datatypes.Student import Student
@@ -17,6 +18,7 @@ MINS_TO_EXPIRE = 5
 class FinanceManager:
     def __init__(self):
         self._mfs_interface = MFSInterface()
+        self._sabo_interface = SABOInterface()
         self._user_list = []
         self.update()
     
@@ -55,6 +57,9 @@ class FinanceManager:
     
     ''' Update the students and requests '''
     def update(self):
+        # Clear the interface
+        self._mfs_interface.clear()
+
         # Generate the dictionaries of students & requests
         self.__student_dict = {}
         for key, value in self._mfs_interface.get_all_students().items():
@@ -102,23 +107,26 @@ class FinanceManager:
             requests[int(request_id)] = Request(**request_dict[request_id])
         return requests
     
+    def get_options(self):
+        return self.__options
+
     ''' MUTATOR CLASSES '''
-    def add_request(self, description:str, requestee:str, account_code:str, budget_index:str, project_name:str, subteam_name:str):
+    def add_request(self, description:str, requestee:str, account_code:str, budget_index:str, project_name:str, subteam_name:str, request_cost:float, link:str):
         # Get the next index to use
-        next_index = int(self.__requests.keys()[len(self.__requests()) - 1]) + 1
+        next_index = int(list(self.__request_dict.keys())[len(self.__request_dict) - 1]) + 1
         
         # Create the new request
-        self.__requests[next_index] = Request(rqid=next_id, description=description, requestee = requestee, account_code=account_code, budget_index=budget_index, project_name=project_name, subteam_name=subteam_name, request_date=datetime.now())
+        self.__request_dict[next_index] = Request(rqid=next_index, description=description, requestee = requestee, account_code=account_code, 
+            budget_index=budget_index, project_name=project_name, subteam_name=subteam_name, status = "Pending Approval",
+            request_cost=request_cost, link=link)
+        print(self.__request_dict[next_index].to_dict())
+        self._mfs_interface.add_request(self.__request_dict[next_index].to_dict())
+
+    def add_approval(self, rqid:int, approval_status: bool, approver:str, approval_level:str = '', notes:str = ''):
+        self._mfs_interface.add_approval(rqid=rqid, curr_status=self.__request_dict[rqid].status, cost=self.__request_dict[rqid].request_cost, 
+            approval_status=approval_status, approver=approver, date=Request.format_time(datetime.now(), False), approval_level=approval_level, 
+            notes=notes )
 
 if __name__ == '__main__':
     fm = FinanceManager()
-    token = fm.generate_token('002761220', 'turtle')
-    print( 'Token generated: ', token)
-    time.sleep(5)
-    print(fm.get_user(token))
-    time.sleep(5)
-    print(fm.get_user(token))
-    time.sleep(7)
-    print(fm.get_user(token))
-    time.sleep(3)
-    print(fm.get_user(token))
+    fm.set_password('002931513', 'H@l0ph1L3')

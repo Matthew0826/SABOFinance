@@ -7,6 +7,9 @@ from .Approval import Approval
 from .Subteam import Subteam
 from datetime import datetime
 
+# Define the format of the date string
+DATE_FORMAT = "%m/%d/%Y %H:%M:%S"
+
 class Request:
     def __init__(self, **kwargs):
         ''' Go through kwargs and use each one (or keep default if not) '''
@@ -16,13 +19,13 @@ class Request:
         self._requestee = kwargs['requestee'] if 'requestee' in kwargs else None        
         ''' Skip the more complicated variables because these have more conditions '''
         self._request_cost = kwargs['request_cost'].replace('$','') if 'request_cost' in kwargs else -1
-        self._final_cost = kwargs['final_cost'].replace('$','') if 'final_cost' in kwargs else -1
-        self._tax = kwargs['tax'].replace('$','') if 'tax' in kwargs else -1
+        self._final_cost = kwargs['final_cost'].replace('$','') if 'final_cost' in kwargs else ''
+        self._tax = kwargs['tax'].replace('$','') if 'tax' in kwargs else ''
         self._link = kwargs['link'] if 'link' in kwargs else ''
         self._reciept_link = kwargs['reciept_link'] if 'reciept_link' in kwargs else ''
         self._sabo_link = kwargs['sabo_link'] if 'sabo_link' in kwargs else ''
-        self._request_date = kwargs['request_date'] if 'request_date' in kwargs else datetime.now()
-        self._submission_date = kwargs['submission_date'] if 'submission_date' in kwargs else None
+        self._request_date:datetime = Request.format_time(kwargs['request_date']) if 'request_date' in kwargs else datetime.now()
+        self._submission_date:datetime = Request.format_time(kwargs['submission_date']) if 'submission_date' in kwargs else None
 
         ''' Parse approvals '''
         # Create empty dictionary to store approvals
@@ -35,7 +38,7 @@ class Request:
 
             if formatted_category + 'approver' in kwargs:
                 if formatted_category + 'approval_date' in kwargs:
-                    self._approvals[category] = Approval(kwargs['approver'], kwargs['approval_date'])
+                    self._approvals[category] = Approval(kwargs['approver'], Request.format_time(kwargs['approval_date']))
                 else:
                     self._approvals = Approval(kwargs['approver'])
             elif formatted_category + 'approval' in kwargs:
@@ -57,6 +60,20 @@ class Request:
         else:
             self._account = None
     
+    ''' Correctly Format the Time '''
+    @staticmethod
+    def format_time(time, to_datetime=True):
+        if to_datetime:
+            if time == '':
+                return None
+            else:
+                return datetime.strptime(time, DATE_FORMAT)
+        else:
+            if time == None:
+                return ''
+            else:
+                return str(time.strftime(DATE_FORMAT))
+
     ''' FORMATTING FUNCTION '''
     def to_dict(self):
         return {
@@ -68,20 +85,20 @@ class Request:
             'budget_index': self._account.budget_index,
             'project_name': self._subteam.project_name,
             'subteam_name': self._subteam.subteam_name,
-            'approver': self._approvals[''].approver,
-            'approval_date': self._approvals[''].date,
+            'approver': self._approvals[''].approver if '' in self._approvals else '',
+            'approval_date': Request.format_time(self._approvals[''].date, False) if '' in self._approvals else '',
             'admin_approver': self._approvals['admin'].approver if 'admin' in self._approvals else '',
-            'admin_approval_date': self._approvals['admin'].date if 'admin' in self._approvals else '',
-            'advisor_approver': self._approvals['advisor'].approver if 'advisor' in self._approvals else '',
-            'advisor_approval_date': self._approvals['advisor'].date if 'advisor' in self._approvals else '',
+            'admin_approval_date': Request.format_time(self._approvals['admin'].date, False) if 'admin' in self._approvals else '',
+            'advisor_approver': self._approvals['advisor'] if 'advisor' in self._approvals else '',
+            'advisor_approval_date': Request.format_time(self._approvals['advisor'].date, False) if 'advisor' in self._approvals else '',
             'request_cost': self._request_cost,
             'final_cost': self._final_cost,
             'tax': self._tax,
             'link': self._link,
             'reciept_link': self._reciept_link,
             'sabo_link': self._sabo_link,
-            'request_date': str(self._request_date),
-            'submission_date': str(self._submission_date)}
+            'request_date': Request.format_time(self._request_date, False),
+            'submission_date': Request.format_time(self._submission_date, False)}
     
     ''' GETTERS '''
     def can_progress(self, name:str, permissions):
@@ -101,6 +118,7 @@ class Request:
             return "Approve as Admin"
         elif self.status == "Approved":
             return "Submit Reciept"
+    
     @property
     def id(self):
         return self._id

@@ -9,7 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import os
 
-class WebScraper():
+class SABOInterface():
     def __init__(self):
         # Path to the ChromeDriver executable
         chrome_options = Options()
@@ -23,7 +23,7 @@ class WebScraper():
         
         files_to_submit = []
         # Send the path of the file to upload
-        for root, dirs, files in os.walk(r"/root/SABOFinance/temp_" + str(id)):
+        for root, dirs, files in os.walk(r"/root/SABOFinance/temp/temp_" + str(id)):
                 for name in files:
                     files_to_submit.append( root + "/" + name )
 

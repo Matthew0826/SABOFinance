@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from google_scan import *
@@ -8,19 +8,21 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from typing import List
 from FinanceInterface import FinanceInterface
+import json
 
 """ 
 This is the main website that deals with the API routing
 This should really only call external functions to handle logic
 """
 app = FastAPI()
-f = MasterSheetInterface()
-d = DriveInterface()
+# f = MasterSheetInterface()
+# d = DriveInterface()
 finance_interface = FinanceInterface()
 
 # These are the hosts that can access the backend.
 origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://northeasternseds.com",
 ]
 
@@ -63,45 +65,27 @@ async def read_item(token:str = ''):
 async def read_item(token:str = ''):
     return finance_interface.get_visible_requests(token)
 
+@app.post("/request")
+async def submit_request(
+    token: str = Query(..., description="Authentication token as a query parameter"),
+    request: Dict = Body(..., description="Request body containing the data"),):    
+    finance_interface.add_request(token, request)
+    return {}
+
+@app.post("/requests/{rqid}/approval")
+async def submit_request(rqid:str, token:str = Query(), request:Dict = Body()):
+    print( request )
+    finance_interface.add_approval(token, rqid, approval=request)
+
+# This gets the options for requests
+@app.get("/options")
+async def read_item():
+    return finance_interface.get_options()
+
 # This gets a specific request
 @app.get("/requests/{rqid}")
 async def read_item(rqid:str, token:str=''):
     return finance_interface.get_request(int(rqid), token)
-
-#This is the new way to get the data. There are a series of fields.
-@app.get("/data")
-async def read_item(skip: int = 0, limit: int = 10):
-    if( limit == 0 ):
-        return HTMLResponse(status_code=401)
-    else:
-        return skip
-
-@app.get("/req_list")
-async def read_item():
-    print( 'Fetching req list')
-    return f.get_req_list()
-
-@app.get("/options")
-async def read_item():
-    print('Getting options')
-    return f.get_request_options()
-
-@app.post("/submit/request")
-async def submit_request(request:Dict):
-    print( request )
-    f.add_request(request)
-    return {}
-
-@app.post("/approve")
-async def submit_approval(approval:Dict):
-    f.add_approval( approval['approved'], approval['id'], approval['user'], approval['note'])
-    return
-
-@app.post("/submit/final")
-async def submit_final(data:Dict):
-    link = d.add_temp_files(data['ID'])
-    f.add_final( data['Cost'], data['Tax'], data['ID'], data['NUId'], link )
-    return
 
 #This gets whenever the Excel sheet updates
 @app.post("/webhook")
@@ -110,15 +94,23 @@ async def receive_webhook(data: Dict):
     finance_interface.on_webhook(data['sheetName'])
     return {}
 
-@app.post("/upload/{id}")
-async def upload_files(id: str, file_uploads: list[UploadFile]):
-
+@app.post("/request/{rqid}/upload")
+async def upload_files(
+    rqid: str, 
+    token: str = Query(...),  # Required query parameter
+    data: str = Body(...),  # JSON body
+    file_uploads: List[UploadFile] = File(...)  # List of files
+):
+    data = json.loads(data)
+    rqid = data['rqid']
+    print(data)
     # Create the folder if it doesn't already exist
-    if not os.path.exists(f'temp_{id}'):
-        os.makedirs(f'temp_{id}')
+    if not os.path.exists(f'temp/temp_{rqid}'):
+        os.makedirs(f'temp/temp_{rqid}')
 
     for i in range( len( file_uploads ) ):
         data = await file_uploads[i].read()
-        with open(f'temp_{id}/'+ file_uploads[i].filename, 'wb') as f:
+        with open(f'temp/temp_{rqid}/'+ file_uploads[i].filename, 'wb') as f:
             f.write(data)
     return
+

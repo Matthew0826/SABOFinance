@@ -27,6 +27,26 @@ class FinanceInterface:
     def get_request(self, rqid:int, token:str):
         return self.get_visible_requests(token)[rqid]
 
+    def get_options(self):
+        return self._manager.get_options()
+
     # This activates when the webhook is called
     def on_webhook(self, sheet_name:str):
         self._manager.update()
+
+    # This adds a request to the system
+    def add_request(self, token:str, request:dict):
+        user = self._manager.get_user(token)                # Get the user      
+        self._manager.add_request(description=request['description'], requestee=request['requestee'], account_code=request['account_code'],
+            budget_index=request['budget_index'], project_name=request['project_name'], subteam_name=request['subteam_name'], 
+            request_cost=request['request_cost'], link=request['link'])
+    
+    # This submits the approval
+    def add_approval(self, token:str, rqid:int, approval:dict):
+        user = self._manager.get_user(token)                # Verify the token
+        self._manager.add_approval(rqid=rqid, approval_status=approval['approved'] == 'true', approver=approval['user'], approval_level=approval['level'], notes=approval['note'])
+
+    # This submits final information
+    def add_final(self, token:str, rqid:int, final_info:dict):
+        user = self._manager.get_user(token)
+        self._manager.add_final(rqid=rqid, )
